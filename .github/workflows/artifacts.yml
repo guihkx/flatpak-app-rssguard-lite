@@ -1,0 +1,68 @@
+name: Flatpak
+on:
+  push:
+  pull_request:
+
+env:
+  APP_ID: com.github.rssguardlite
+  MANIFEST_PATH: com.github.rssguardlite.yml
+  ARTIFACT_NAME: RSS_Guard_Lite
+  TARGET_ARCH: x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt install -y flatpak
+
+      # https://vielmetti.typepad.com/logbook/2022/10/git-security-fixes-lead-to-fatal-transport-file-not-allowed-error-in-ci-systems-cve-2022-39253.html
+      - name: Workaround issue with git v2.38.1
+        run: |
+         git config --global protocol.file.allow always
+
+      - name: Set up Flatpak
+        run: |
+          flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install --or-update --noninteractive flathub org.flathub.flatpak-external-data-checker
+          flatpak --user install --or-update --noninteractive flathub org.flatpak.Builder
+
+      - name: Validate manifest
+        run: |
+          # Ignore manifest validation for now
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions '${{ env.MANIFEST_PATH }}' || true
+
+      - name: Build (${{ env.TARGET_ARCH }})
+        run: |
+          export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+          dbus-run-session flatpak run org.flatpak.Builder --user --arch ${{ env.TARGET_ARCH }} --force-clean --sandbox --delete-build-dirs --install-deps-from=flathub --repo repo builddir '${{ env.MANIFEST_PATH }}'
+
+      - name: Check for AppStream xml
+        run: |
+          stat builddir/*/share/app-info/xmls/${{ env.APP_ID }}.xml.gz
+
+      - name: Check for right id in AppStream xml
+        run: |
+          zgrep "<id>${{ env.APP_ID }}\(\.\w\+\)*\(.desktop\)\?</id>" builddir/*/share/app-info/xmls/${{ env.APP_ID }}.xml.gz
+
+      - name: AppStream validation
+        run: |
+          flatpak run --env=G_DEBUG=fatal-criticals --command=appstream-util org.flatpak.Builder validate builddir/*/share/appdata/${{ env.APP_ID }}.appdata.xml
+
+      - name: Check for 128x128 icon
+        run: |
+          zgrep "<icon type=\"remote\">" builddir/*/share/app-info/xmls/${{ env.APP_ID }}.xml.gz || test -f builddir/*/share/app-info/icons/flatpak/128x128/${{ env.APP_ID }}.png
+
+      - name: Bundle (${{ env.TARGET_ARCH }})
+        run: |
+          flatpak build-bundle --arch=${{ env.TARGET_ARCH }} repo/ '${{ env.ARTIFACT_NAME }}-${{ env.TARGET_ARCH }}.flatpak' '${{ env.APP_ID }}' master
+
+      - name: Upload (${{ env.TARGET_ARCH }})
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}-${{ env.TARGET_ARCH }}
+          path: |
+            ${{ env.ARTIFACT_NAME }}-${{ env.TARGET_ARCH }}.flatpak

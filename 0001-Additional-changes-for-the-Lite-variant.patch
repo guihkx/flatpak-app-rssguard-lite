@@ -1,0 +1,498 @@
+From d5f91b11e24e7241c2bb1a5f0c3b6e3fe6eff198 Mon Sep 17 00:00:00 2001
+From: guihkx <guihkx@users.noreply.github.com>
+Date: Sun, 23 Oct 2022 00:51:21 -0300
+Subject: [PATCH] Additional changes for the Lite variant
+
+---
+ CMakeLists.txt                                | 27 ++++++-
+ .../desktop/com.github.rssguard.appdata.xml   | 54 --------------
+ .../com.github.rssguard.desktop.autostart     |  9 ---
+ .../com.github.rssguardlite.appdata.xml       | 57 --------------
+ ...b.rssguard.desktop => rssguard.desktop.in} | 16 ++--
+ resources/desktop/rssguard.metainfo.xml.in    | 74 +++++++++++++++++++
+ resources/rssguard.qrc                        |  3 +-
+ resources/scripts/hooks/pre-commit            |  2 +-
+ src/librssguard/definitions/definitions.h     |  4 +-
+ src/librssguard/miscellaneous/application.cpp |  2 +-
+ .../miscellaneous/singleapplication.cpp       |  1 -
+ .../miscellaneous/systemfactory.cpp           | 17 ++---
+ src/rssguard/CMakeLists.txt                   | 18 ++---
+ src/rssguard/main.cpp                         |  2 +-
+ 14 files changed, 123 insertions(+), 163 deletions(-)
+ delete mode 100644 resources/desktop/com.github.rssguard.appdata.xml
+ delete mode 100644 resources/desktop/com.github.rssguard.desktop.autostart
+ delete mode 100644 resources/desktop/com.github.rssguardlite.appdata.xml
+ rename resources/desktop/{com.github.rssguard.desktop => rssguard.desktop.in} (74%)
+ create mode 100644 resources/desktop/rssguard.metainfo.xml.in
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ade6ca1f..e1a012be 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,7 +63,11 @@ set(APP_NAME "RSS Guard")
+ set(APP_EMAIL "rotter.martinos@gmail.com")
+ set(APP_AUTHOR "Martin Rotter")
+ set(APP_COPYRIGHT "\\251 2011-${YEAR} ${APP_AUTHOR}")
+-set(APP_REVERSE_NAME "com.github.rssguard")
++if(USE_WEBENGINE)
++  set(APP_REVERSE_NAME "com.github.rssguard")
++else()
++  set(APP_REVERSE_NAME "com.github.rssguardlite")
++endif()
+ set(APP_DONATE_URL "https://github.com/sponsors/martinrotter")
+ set(APP_VERSION "4.2.5")
+ 
+@@ -74,6 +78,7 @@ set(APP_URL_ISSUES_NEW "https://github.com/martinrotter/rssguard/issues/new/choo
+ set(TYPEINFO "????")
+ 
+ project(rssguard VERSION ${APP_VERSION} LANGUAGES CXX C)
++set(APP_LOW_NAME "${CMAKE_PROJECT_NAME}")
+ 
+ # Basic C++ related behavior of cmake.
+ set(CMAKE_CXX_STANDARD 17)
+@@ -202,7 +207,7 @@ add_compile_definitions(
+   APP_VERSION="${CMAKE_PROJECT_VERSION}"
+   APP_URL="${APP_URL}"
+   APP_LONG_NAME="${APP_NAME} ${CMAKE_PROJECT_VERSION}"
+-  APP_LOW_NAME="${CMAKE_PROJECT_NAME}"
++  APP_LOW_NAME="${APP_LOW_NAME}"
+   APP_REVERSE_NAME="${APP_REVERSE_NAME}"
+ 
+   QT_USE_QSTRINGBUILDER
+@@ -240,6 +245,24 @@ elseif(APPLE)
+     resources/macosx/Info.plist.in
+     ${CMAKE_BINARY_DIR}/Info.plist
+   )
++elseif(UNIX AND NOT ANDROID)
++  if(USE_WEBENGINE)
++    set(APPDATA_NAME "${APP_NAME}")
++    set(APPDATA_SUMMARY "Simple (yet powerful) feed reader.")
++  else()
++    set(APPDATA_NAME "${APP_NAME} (Lite)")
++    set(APPDATA_SUMMARY "Simple (yet powerful) feed reader. Lite version, with no built-in web browser.")
++  endif()
++  add_compile_definitions(APPDATA_NAME="${APPDATA_NAME}")
++
++  configure_file(
++    resources/desktop/rssguard.desktop.in
++    ${CMAKE_BINARY_DIR}/${APP_REVERSE_NAME}.desktop
++  )
++  configure_file(
++    resources/desktop/rssguard.metainfo.xml.in
++    ${CMAKE_BINARY_DIR}/${APP_REVERSE_NAME}.metainfo.xml
++  )
+ endif()
+ 
+ # Generate localizations, build library and application.
+diff --git a/resources/desktop/com.github.rssguard.appdata.xml b/resources/desktop/com.github.rssguard.appdata.xml
+deleted file mode 100644
+index 56e661c4..00000000
+--- a/resources/desktop/com.github.rssguard.appdata.xml
++++ /dev/null
+@@ -1,54 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!-- Copyright 2017-2022 Martin Rotter <rotter.martinos@gmail.com> -->
+-<component type="desktop-application">
+-  <id>com.github.rssguard.desktop</id>
+-  <metadata_license>CC0-1.0</metadata_license>
+-  <project_license>GPL-3.0</project_license>
+-  <name>RSS Guard</name>
+-  <update_contact>rotter.martinos_AT_gmail.com</update_contact>
+-  <summary>Simple (yet powerful) feed reader</summary>
+-  ​<translation type="qt">rssguard</translation>
+-  <description>
+-    <p>
+-      RSS Guard is simple (yet powerful) feed reader. It is able to fetch the most known feed formats, including RSS/RDF and ATOM. RSS Guard is developed on top of the Qt library.
+-    </p>
+-  </description>
+-  <launchable type="desktop-id">com.github.rssguard.desktop</launchable>
+-  <screenshots>
+-  <screenshot type="default">
+-      <image>https://raw.githubusercontent.com/martinrotter/rssguard/master/resources/docs/images/rssguard-window.png</image>
+-    </screenshot>
+-  </screenshots>
+-  <url type="homepage">https://github.com/martinrotter/rssguard</url>
+-  <url type="bugtracker">https://github.com/martinrotter/rssguard/issues</url>
+-  <url type="donation">https://github.com/sponsors/martinrotter</url>
+-  <content_rating type="oars-1.1" />
+-  <releases>
+-    <release version="4.2.5" date="2022-10-21"/>
+-  </releases>
+-  <content_rating type="oars-1.0">
+-    <content_attribute id="violence-cartoon">none</content_attribute>
+-    <content_attribute id="violence-fantasy">none</content_attribute>
+-    <content_attribute id="violence-realistic">none</content_attribute>
+-    <content_attribute id="violence-bloodshed">none</content_attribute>
+-    <content_attribute id="violence-sexual">none</content_attribute>
+-    <content_attribute id="drugs-alcohol">none</content_attribute>
+-    <content_attribute id="drugs-narcotics">none</content_attribute>
+-    <content_attribute id="drugs-tobacco">none</content_attribute>
+-    <content_attribute id="sex-nudity">none</content_attribute>
+-    <content_attribute id="sex-themes">none</content_attribute>
+-    <content_attribute id="language-profanity">none</content_attribute>
+-    <content_attribute id="language-humor">none</content_attribute>
+-    <content_attribute id="language-discrimination">none</content_attribute>
+-    <content_attribute id="social-chat">none</content_attribute>
+-    <content_attribute id="social-info">none</content_attribute>
+-    <content_attribute id="social-audio">none</content_attribute>
+-    <content_attribute id="social-location">none</content_attribute>
+-    <content_attribute id="social-contacts">none</content_attribute>
+-    <content_attribute id="money-purchasing">none</content_attribute>
+-    <content_attribute id="money-gambling">none</content_attribute>
+-  </content_rating>
+-  <provides>
+-    <binary>rssguard</binary>
+-  </provides>
+-</component>
+diff --git a/resources/desktop/com.github.rssguard.desktop.autostart b/resources/desktop/com.github.rssguard.desktop.autostart
+deleted file mode 100644
+index 58bcbcce..00000000
+--- a/resources/desktop/com.github.rssguard.desktop.autostart
++++ /dev/null
+@@ -1,9 +0,0 @@
+-[Desktop Entry]
+-Version=1.0
+-Type=Application
+-Terminal=false
+-Name=RSS Guard
+-Exec=%1
+-Hidden=false
+-X-GNOME-Autostart-Delay=15
+-X-LXQt-Need-Tray=true
+\ No newline at end of file
+diff --git a/resources/desktop/com.github.rssguardlite.appdata.xml b/resources/desktop/com.github.rssguardlite.appdata.xml
+deleted file mode 100644
+index e4495f94..00000000
+--- a/resources/desktop/com.github.rssguardlite.appdata.xml
++++ /dev/null
+@@ -1,57 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!-- Copyright 2017-2022 Martin Rotter <rotter.martinos@gmail.com> -->
+-<component type="desktop-application">
+-  <id>com.github.rssguardlite.desktop</id>
+-  <metadata_license>CC0-1.0</metadata_license>
+-  <project_license>GPL-3.0</project_license>
+-  <name>RSS Guard (lite)</name>
+-  <update_contact>rotter.martinos_AT_gmail.com</update_contact>
+-  <summary>Simple (yet powerful) feed reader</summary>
+-  ​<translation type="qt">rssguard</translation>
+-  <description>
+-    <p>
+-      RSS Guard is simple (yet powerful) feed reader. It is able to fetch the most known feed formats, including RSS/RDF and ATOM. RSS Guard is developed on top of the Qt library.
+-    </p>
+-    <p>
+-      This build of RSS Guard does not contain QtWebEngine module and some other things and is meant for users who prefer more secure and lightweight app. 
+-    </p>
+-  </description>
+-  <launchable type="desktop-id">com.github.rssguard.desktop</launchable>
+-  <screenshots>
+-  <screenshot type="default">
+-      <image>https://raw.githubusercontent.com/martinrotter/rssguard/master/resources/docs/images/rssguard-window.png</image>
+-    </screenshot>
+-  </screenshots>
+-  <url type="homepage">https://github.com/martinrotter/rssguard</url>
+-  <url type="bugtracker">https://github.com/martinrotter/rssguard/issues</url>
+-  <url type="donation">https://github.com/sponsors/martinrotter</url>
+-  <content_rating type="oars-1.1" />
+-  <releases>
+-    <release version="4.2.5" date="2022-10-21"/>
+-  </releases>
+-  <content_rating type="oars-1.0">
+-    <content_attribute id="violence-cartoon">none</content_attribute>
+-    <content_attribute id="violence-fantasy">none</content_attribute>
+-    <content_attribute id="violence-realistic">none</content_attribute>
+-    <content_attribute id="violence-bloodshed">none</content_attribute>
+-    <content_attribute id="violence-sexual">none</content_attribute>
+-    <content_attribute id="drugs-alcohol">none</content_attribute>
+-    <content_attribute id="drugs-narcotics">none</content_attribute>
+-    <content_attribute id="drugs-tobacco">none</content_attribute>
+-    <content_attribute id="sex-nudity">none</content_attribute>
+-    <content_attribute id="sex-themes">none</content_attribute>
+-    <content_attribute id="language-profanity">none</content_attribute>
+-    <content_attribute id="language-humor">none</content_attribute>
+-    <content_attribute id="language-discrimination">none</content_attribute>
+-    <content_attribute id="social-chat">none</content_attribute>
+-    <content_attribute id="social-info">none</content_attribute>
+-    <content_attribute id="social-audio">none</content_attribute>
+-    <content_attribute id="social-location">none</content_attribute>
+-    <content_attribute id="social-contacts">none</content_attribute>
+-    <content_attribute id="money-purchasing">none</content_attribute>
+-    <content_attribute id="money-gambling">none</content_attribute>
+-  </content_rating>
+-  <provides>
+-    <binary>rssguard</binary>
+-  </provides>
+-</component>
+diff --git a/resources/desktop/com.github.rssguard.desktop b/resources/desktop/rssguard.desktop.in
+similarity index 74%
+rename from resources/desktop/com.github.rssguard.desktop
+rename to resources/desktop/rssguard.desktop.in
+index 8d9a3e04..b9ad6ca0 100644
+--- a/resources/desktop/com.github.rssguard.desktop
++++ b/resources/desktop/rssguard.desktop.in
+@@ -1,17 +1,15 @@
+ [Desktop Entry]
+ Type=Application
+-Version=1.0
+-Exec=rssguard
+-X-GNOME-Autostart-Delay=15
+-X-LXQt-Need-Tray=true
+-Name=RSS Guard
++Name=@APPDATA_NAME@
++Exec=@APP_LOW_NAME@
++Icon=@APP_REVERSE_NAME@
++StartupWMClass=@APP_LOW_NAME@
+ GenericName=Feed reader
+ GenericName[cs]=Velmi jednoduchá čtečka kanálů
+ GenericName[de]=Feedreader
+ Comment=Tiny yet feature rich Qt feed reader
+ Comment[cs]=Velmi jednoduchá čtečka kanálů
+ Comment[de]=Qt Feedreader mit großem Funktionsumfang bei geringem Ressourcenbedarf
+-Icon=rssguard
+-Terminal=false
+-Categories=Qt;Network;News;
+-StartupWMClass=rssguard
++Categories=Feed;News;Network;Qt;
++X-GNOME-Autostart-Delay=15
++X-LXQt-Need-Tray=true
+diff --git a/resources/desktop/rssguard.metainfo.xml.in b/resources/desktop/rssguard.metainfo.xml.in
+new file mode 100644
+index 00000000..17afae36
+--- /dev/null
++++ b/resources/desktop/rssguard.metainfo.xml.in
+@@ -0,0 +1,74 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Copyright 2017-2022 Martin Rotter <rotter.martinos@gmail.com> -->
++<component type="desktop-application">
++  <id>@APP_REVERSE_NAME@</id>
++  <metadata_license>CC0-1.0</metadata_license>
++  <project_license>GPL-3.0</project_license>
++  <name>@APPDATA_NAME@</name>
++  <update_contact>rotter.martinos_AT_gmail.com</update_contact>
++  <summary>@APPDATA_SUMMARY@</summary>
++  ​<translation type="qt">rssguard</translation>
++  <description>
++    <p>
++      @APP_NAME@ is a simple (yet powerful) feed reader, written in C++ and Qt.
++    </p>
++    <p>
++      It supports many feed formats, such as:
++    </p>
++    <ul>
++      <li>ATOM</li>
++      <li>JSON (1.x)</li>
++      <li>RSS (0.x, 1.x, 2.x)</li>
++    </ul>
++    <p>
++      It also supports many web-based feed services, including:
++    </p>
++    <ul>
++      <li>Feedly</li>
++      <li>Gmail</li>
++      <li>Google Reader API (Bazqux, FreshRSS, Inoreader, Miniflux, Reedah, The Old Reader, etc.)</li>
++      <li>Next Cloud News</li>
++      <li>Tiny Tiny RSS</li>
++    </ul>
++  </description>
++  <launchable type="desktop-id">@APP_REVERSE_NAME@.desktop</launchable>
++  <screenshots>
++  <screenshot type="default">
++    <image>https://raw.githubusercontent.com/martinrotter/rssguard/master/resources/docs/images/rssguard-window.png</image>
++  </screenshot>
++  </screenshots>
++  <url type="homepage">https://github.com/martinrotter/rssguard</url>
++  <url type="bugtracker">https://github.com/martinrotter/rssguard/issues</url>
++  <url type="donation">https://github.com/sponsors/martinrotter</url>
++  <url type="translate">https://explore.transifex.com/martinrotter/rssguard/</url>
++  <categories>
++    <category>Feed</category>
++    <category>News</category>
++    <category>Network</category>
++    <category>Qt</category>
++  </categories>
++  <keywords>
++    <keyword translate="no">ATOM</keyword>
++    <keyword translate="no">JSON</keyword>
++    <keyword translate="no">RDF</keyword>
++    <keyword translate="no">RSS</keyword>
++    <keyword translate="no">Bazqux</keyword>
++    <keyword translate="no">Feedly</keyword>
++    <keyword translate="no">FreshRSS</keyword>
++    <keyword translate="no">Google Reader</keyword>
++    <keyword translate="no">Inoreader</keyword>
++    <keyword translate="no">Miniflux</keyword>
++    <keyword translate="no">Next Cloud News</keyword>
++    <keyword translate="no">Reedah</keyword>
++    <keyword translate="no">The Old Reader</keyword>
++    <keyword translate="no">Tiny Tiny RSS</keyword>
++  </keywords>
++  <releases>
++    <release version="4.2.5" date="2022-10-21"/>
++  </releases>
++  <content_rating type="oars-1.0"/>
++  <content_rating type="oars-1.1"/>
++  <provides>
++    <binary>@APP_LOW_NAME@</binary>
++  </provides>
++</component>
+diff --git a/resources/rssguard.qrc b/resources/rssguard.qrc
+index 5b5e4770..255a7383 100644
+--- a/resources/rssguard.qrc
++++ b/resources/rssguard.qrc
+@@ -87,8 +87,7 @@
+ 
+     <file>initial_feeds/feeds-en_US.opml</file>
+ 
+-    <file>desktop/com.github.rssguard.desktop</file>
+-    <file>desktop/com.github.rssguard.desktop.autostart</file>
++    <file>desktop/rssguard.desktop.in</file>
+ 
+     <file>../localization/rssguard_cs.qm</file>
+     <file>../localization/rssguard_da.qm</file>
+diff --git a/resources/scripts/hooks/pre-commit b/resources/scripts/hooks/pre-commit
+index 2dc4a82a..25596443 100755
+--- a/resources/scripts/hooks/pre-commit
++++ b/resources/scripts/hooks/pre-commit
+@@ -4,7 +4,7 @@ changelog_file="resources/text/CHANGELOG"
+ datestring="$(date +%F)"
+ versionstring="$(head -n 1 "$changelog_file")"
+ 
+-for appdata_file in resources/desktop/*.appdata.xml; do
++for appdata_file in resources/desktop/*.metainfo.xml.in; do
+   appdata_file_n="${appdata_file}.n"
+ 
+   # Set version and date.
+diff --git a/src/librssguard/definitions/definitions.h b/src/librssguard/definitions/definitions.h
+index 3371d2ca..7d7d294b 100644
+--- a/src/librssguard/definitions/definitions.h
++++ b/src/librssguard/definitions/definitions.h
+@@ -337,9 +337,7 @@
+ #define APP_LANG_PATH QSL(":/localization")
+ 
+ #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+-#define APP_DESKTOP_SOURCE_ENTRY_FILE "com.github.rssguard.desktop.autostart"
+-#define APP_DESKTOP_ENTRY_FILE "com.github.rssguard.desktop"
+-
++#define APP_DESKTOP_SOURCE_ENTRY_FILE "rssguard.desktop.in"
+ #define APP_DESKTOP_ENTRY_PATH QSL(":/desktop")
+ #endif
+ 
+diff --git a/src/librssguard/miscellaneous/application.cpp b/src/librssguard/miscellaneous/application.cpp
+index e1101abd..f7cdde12 100644
+--- a/src/librssguard/miscellaneous/application.cpp
++++ b/src/librssguard/miscellaneous/application.cpp
+@@ -737,7 +737,7 @@ void Application::showMessagesNumber(int unread_messages, bool any_feed_has_new_
+   bool task_bar_count_enabled = settings()->value(GROUP(GUI), SETTING(GUI::UnreadNumbersOnTaskBar)).toBool();
+   QDBusMessage signal = QDBusMessage::createSignal(QSL("/"), QSL("com.canonical.Unity.LauncherEntry"), QSL("Update"));
+ 
+-  signal << QSL("application://%1").arg(APP_DESKTOP_ENTRY_FILE);
++  signal << QSL("application://%1.desktop").arg(APP_REVERSE_NAME);
+ 
+   QVariantMap setProperty;
+ 
+diff --git a/src/librssguard/miscellaneous/singleapplication.cpp b/src/librssguard/miscellaneous/singleapplication.cpp
+index 34463616..997ddac3 100644
+--- a/src/librssguard/miscellaneous/singleapplication.cpp
++++ b/src/librssguard/miscellaneous/singleapplication.cpp
+@@ -23,7 +23,6 @@ void SingleApplication::finish() {
+ 
+ bool SingleApplication::isOtherInstanceRunning(const QString& message) {
+   QLocalSocket sck;
+-
+   sck.connectToServer(m_id);
+ 
+   if (sck.waitForConnected(200)) {
+diff --git a/src/librssguard/miscellaneous/systemfactory.cpp b/src/librssguard/miscellaneous/systemfactory.cpp
+index 38d6c40d..cfdd40bf 100644
+--- a/src/librssguard/miscellaneous/systemfactory.cpp
++++ b/src/librssguard/miscellaneous/systemfactory.cpp
+@@ -94,7 +94,7 @@ QString SystemFactory::autostartDesktopFileLocation() const {
+   if (!xdg_config_path.isEmpty()) {
+     // XDG_CONFIG_HOME variable is specified. Look for .desktop file
+     // in 'autostart' subdirectory.
+-    desktop_file_location = xdg_config_path + QSL("/autostart/") + APP_DESKTOP_ENTRY_FILE;
++    desktop_file_location = xdg_config_path + QSL("/autostart/") + APP_REVERSE_NAME + QSL(".desktop");
+   }
+   else {
+     // Desired variable is not set, look for the default 'autostart' subdirectory.
+@@ -103,7 +103,7 @@ QString SystemFactory::autostartDesktopFileLocation() const {
+     if (!home_directory.isEmpty()) {
+       // Home directory exists. Check if target .desktop file exists and
+       // return according status.
+-      desktop_file_location = home_directory + QSL("/.config/autostart/") + APP_DESKTOP_ENTRY_FILE;
++      desktop_file_location = home_directory + QSL("/.config/autostart/") + APP_REVERSE_NAME + QSL(".desktop");
+     }
+   }
+ 
+@@ -189,17 +189,14 @@ bool SystemFactory::setAutoStartStatus(AutoStartStatus new_status) {
+         args = FROM_STD_LIST(QStringList, std_args);
+ 
+ #if defined(IS_FLATPAK_BUILD)
+-#if defined(USE_WEBENGINE)
+-        const QString flatpak_run = QSL("flatpak run %1").arg(QSL(APP_REVERSE_NAME));
+-#else
+-        const QString flatpak_run = QSL("flatpak run %1lite").arg(QSL(APP_REVERSE_NAME));
+-#endif
+-
++        const QString flatpak_run = QSL("flatpak run %1").arg(APP_REVERSE_NAME);
+         args = args.mid(1);
+         args.prepend(flatpak_run);
+ #endif
+-
+-        desktop_file_contents = desktop_file_contents.arg(args.join(QL1C(' ')));
++        desktop_file_contents.replace("Exec=@APP_LOW_NAME@", QSL("Exec=") + args.join(QL1C(' ')));
++        desktop_file_contents.replace("@APPDATA_NAME@", APPDATA_NAME);
++        desktop_file_contents.replace("@APP_REVERSE_NAME@", APP_REVERSE_NAME);
++        desktop_file_contents.replace("@APP_LOW_NAME@", APP_LOW_NAME);
+ 
+         IOFactory::writeFile(destination_file, desktop_file_contents.toUtf8());
+       }
+diff --git a/src/rssguard/CMakeLists.txt b/src/rssguard/CMakeLists.txt
+index 3c434a8a..7af935ac 100644
+--- a/src/rssguard/CMakeLists.txt
++++ b/src/rssguard/CMakeLists.txt
+@@ -63,23 +63,15 @@ elseif(UNIX AND NOT APPLE AND NOT ANDROID)
+   install(TARGETS app
+     DESTINATION ${CMAKE_INSTALL_BINDIR}
+   )
+-  install(FILES ${CMAKE_SOURCE_DIR}/resources/desktop/${APP_REVERSE_NAME}.desktop
++  install(FILES ${CMAKE_BINARY_DIR}/${APP_REVERSE_NAME}.desktop
+     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
+   )
+-
+-  if(USE_WEBENGINE)
+-    install(FILES ${CMAKE_SOURCE_DIR}/resources/desktop/${APP_REVERSE_NAME}.appdata.xml
+-      DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
+-    )
+-  else()
+-    install(FILES ${CMAKE_SOURCE_DIR}/resources/desktop/${APP_REVERSE_NAME}lite.appdata.xml
+-      DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
+-      RENAME ${APP_REVERSE_NAME}.appdata.xml
+-    )
+-  endif()
+-
++  install(FILES ${CMAKE_BINARY_DIR}/${APP_REVERSE_NAME}.metainfo.xml
++    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
++  )
+   install(FILES ${CMAKE_SOURCE_DIR}/resources/graphics/${CMAKE_PROJECT_NAME}.png
+     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps
++    RENAME ${APP_REVERSE_NAME}.png
+   )
+ elseif(APPLE)
+   install(TARGETS app
+diff --git a/src/rssguard/main.cpp b/src/rssguard/main.cpp
+index 663e603c..bc0cb642 100644
+--- a/src/rssguard/main.cpp
++++ b/src/rssguard/main.cpp
+@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
+ #endif
+ 
+ #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+-  QApplication::setDesktopFileName(APP_DESKTOP_ENTRY_FILE);
++  QApplication::setDesktopFileName(APP_REVERSE_NAME + QSL(".desktop"));
+ #endif
+ 
+ #if defined(QT_STATIC)
+-- 
+2.38.1
+
