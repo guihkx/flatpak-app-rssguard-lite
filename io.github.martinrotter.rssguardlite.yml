@@ -1,7 +1,9 @@
-id: com.github.rssguardlite
+id: io.github.martinrotter.rssguardlite
 runtime: org.kde.Platform
 runtime-version: '6.3'
 sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node16
 command: rssguard
 finish-args:
   - --device=dri
@@ -10,14 +12,11 @@ finish-args:
   - --socket=fallback-x11
   - --socket=pulseaudio
   - --socket=wayland
-  - --filesystem=xdg-config/autostart:create
   - --filesystem=xdg-download
   - --talk-name=org.kde.StatusNotifierWatcher
   - --talk-name=org.freedesktop.Notifications
-cleanup:
-  - /include
 modules:
-  # Needed for Qt 6.
+  # TODO: Remove the following module once we update to the 6.4 SDK.
   # See also: https://invent.kde.org/packaging/flatpak-kde-runtime/-/issues/26
   - name: qt6-core5compat
     buildsystem: cmake-ninja
@@ -28,21 +27,34 @@ modules:
         sha256: 91a3ac0f3f87e4103afa5834ccbecff9374daf716fab362d0c5e2d6ab98560cc
     post-install:
       - ln -sr /app/lib/${FLATPAK_ARCH}-linux-gnu/libQt6Core5Compat.so* -t /app/lib
+    cleanup:
+      - /include
+      - /mkspecs
+      - /modules
 
   - name: rssguard
     buildsystem: cmake-ninja
     config-opts:
       - -DBUILD_WITH_QT6=ON
+      - -DFORCE_BUNDLE_ICONS=ON
       - -DIS_FLATPAK_BUILD=ON
       - -DNO_UPDATE_CHECK=ON
       - -DUSE_WEBENGINE=OFF
     sources:
       - type: git
         url: https://github.com/martinrotter/rssguard.git
-        #tag: 4.2.5
-        commit: 0029d45cbb52c3b3dc93db6071bf3edb1d0eae08
+        tag: '4.2.7'
+        commit: 0bbf91affa297a4c11725867ae9b8fcac1b63483
         x-checker-data:
           type: git
           tag-pattern: ^([\d.]+)$
-      - type: patch
-        path: 0001-Additional-changes-for-the-Lite-variant.patch
+    cleanup:
+      - /include
+
+  - name: nodejs_and_npm
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin /app/lib
+      - cp -a /usr/lib/sdk/node16/bin/{node,npm} /app/bin
+      - cp -a /usr/lib/sdk/node16/lib/* /app/lib
+      - rm -r /app/lib/node_modules/npm/{docs,man}

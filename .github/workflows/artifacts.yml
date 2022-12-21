@@ -4,8 +4,8 @@ on:
   pull_request:
 
 env:
-  APP_ID: com.github.rssguardlite
-  MANIFEST_PATH: com.github.rssguardlite.yml
+  APP_ID: io.github.martinrotter.rssguardlite
+  MANIFEST_PATH: io.github.martinrotter.rssguardlite.yml
   ARTIFACT_NAME: RSS_Guard_Lite
   TARGET_ARCH: x86_64
 
