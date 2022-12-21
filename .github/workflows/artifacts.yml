@@ -4,9 +4,9 @@ on:
   pull_request:
 
 env:
-  APP_ID: io.github.martinrotter.rssguardlite
-  MANIFEST_PATH: io.github.martinrotter.rssguardlite.yml
-  ARTIFACT_NAME: RSS_Guard_Lite
+  APP_ID: io.github.martinrotter.rssguard
+  MANIFEST_PATH: io.github.martinrotter.rssguard.yml
+  ARTIFACT_NAME: RSS_Guard_Regular
   TARGET_ARCH: x86_64
 
 jobs:
